@@ -1,0 +1,88 @@
+---
+title: "Bilayer_networks_structural_functional"
+author: "Martins M Gatavins"
+date: "2023-04-12"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# R version 4.2.3
+# RStudio
+library(readr) # v 2.1.4
+library(dplyr) # v 1.1.1
+library(stringi) # v 1.7.12
+library(stringr) # v 1.5.0
+library(tidyr) # 1.3.0
+library(corrplot) # v 0.92
+library(qgraph) # v 1.9.4
+library(psychonetrics) # v 0.10
+library(networktools) # v 1.5.0
+library(Matrix) # v 1.5.3
+library(OpenMx) # v 2.21.1
+library(bootnet) # v 1.5
+#library(NetworkComparisonTest) # v 2.2.1
+library(reshape2) # v 1.4.4
+library(lavaan) # v 0.6-15
+library(semPlot)
+library(jmv)
+library(psych)
+```
+# SETUP
+Load structural (*n=167*) and functional (*n=131*) data and set up working directory
+
+```{r}
+workdir <- "~/Desktop/exposome_project/"
+load(paste0(workdir,"n190_funcStructExposomedata.RData"))
+structural_data <- joint_quest[joint_quest[["structural"]]==1,]
+functional_data <- joint_quest[joint_quest[["functional"]]==1,]
+```
+
+Group variables by modality (exposome, structural, functional) and submodality (structural: surface area and cortical thickness; functional: participation and clustering coefficient)
+
+```{r}
+exposome <- colnames(joint_quest)[3:16]
+communities <- c("Vis","Motor","DorAtt","VenAtt","Limb","Contr","Defau")
+PCvars <- paste(communities,"PC",sep="_")
+CCvars <- paste(communities,"CC",sep="_")
+SAvars <- paste(communities,"SA",sep="")
+CTvars <- paste(communities,"CT",sep="")
+```
+
+Data prep for network modeling
+
+```{r}
+PC_exposome_df <- functional_data[,c(exposome,paste0(PCvars,"_resid"))]
+CC_exposome_df <- functional_data[,c(exposome,paste0(CCvars,"_resid"))]
+SA_exposome_df <- structural_data[,c(exposome,SAvars)]
+CT_exposome_df <- structural_data[,c(exposome,CTvars)]
+
+colnames(PC_exposome_df) <- gsub("_PC_resid","",colnames(PC_exposome_df))
+colnames(CC_exposome_df) <- gsub("_CC_resid","",colnames(CC_exposome_df))
+colnames(SA_exposome_df) <- gsub("SA","",colnames(SA_exposome_df))
+colnames(CT_exposome_df) <- gsub("CT","",colnames(CT_exposome_df))
+
+set.seed(125) # for replication
+```
+
+Setting up organization elements for plots
+
+```{r}
+exposomeColors<-c("white","white","white","white","white","white","white",
+                  "white",'white',"white","white","white","white","white",
+                  "grey","grey","grey","grey","grey","grey","grey")
+modalities <- c(1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2)
+```
+
+# Network modeling - FUNCTIONAL MEASURES
+
+Unthresholded exposome-participation coefficient bilayer networks
+(1) Model
+```{r}
+exposomePC_unthresholded <- estimateNetwork(PC_exposome_df,
+                                   corMethod="cor",
+                                   corArgs=list(method="pearson",
+                                                use="pairwise.complete.obs"),
+                                   default="EBICglasso",
+                                   tuning=0.5,
+                                   threshold=F)
