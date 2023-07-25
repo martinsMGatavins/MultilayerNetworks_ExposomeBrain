@@ -1,6 +1,6 @@
 ---
 title: "Bilayer_networks_structural_functional"
-author: "Martins M Gatavins"
+author: "Martins M Gatavins & Ivan L Simpson-Kent"
 date: "2023-04-12"
 output: html_document
 ---
@@ -86,3 +86,277 @@ exposomePC_unthresholded <- estimateNetwork(PC_exposome_df,
                                    default="EBICglasso",
                                    tuning=0.5,
                                    threshold=F)
+
+```
+(2) Plot 
+```{r}
+plot(exposomePC_unthresholded,color = exposomeColors,layout="spring",fade=T,
+     posCol=c("#386E4B"),negCol=c("#9D0080"),negDashed=T)
+```
+(3) Correlation stability test (range: ~ 0.435, 0.359-0.519)
+```{r}
+exposomePC_unthresholded_boot <- bootnet(PC_exposome_df,
+                                         corMethod = "cor", 
+                      corArgs = list(method = "pearson",
+                                     use = "pairwise.complete.obs"),
+                      default = "EBICglasso",
+                      tuning = 0.5,
+                      nCores = 8,
+                      nBoots = 2000,
+                      type = "case", 
+                      statistics = c("edge"),
+                      communities = modalities)
+corStability(exposomePC_unthresholded_boot)
+```
+(4) Second correlation stability test (+/- 0.2; CS = 0.504)
+```{r}
+exposomePC_unthresholded_boot_precise <- bootnet(PC_exposome_df,
+                                         corMethod = "cor", 
+                      corArgs = list(method = "pearson",
+                                     use = "pairwise.complete.obs"),
+                      default = "EBICglasso",
+                      tuning = 0.5,
+                      nCores = 8,
+                      nBoots = 2000,
+                      type = "case", 
+                      statistics = c("edge"),
+                      caseMin = 0.235, caseMax = 0.635,
+                      communities = modalities)
+corStability(exposomePC_unthresholded_boot_precise)
+```
+(5) Descriptive statistics (incomplete)
+```{r}
+exposomePC_unthresholded[["graph"]]["Lead","Defau"] # -0.04
+exposomePC_unthresholded_lowerDiag <- matrix(vechs(getWmat(exposomePC_unthresholded[["graph"]])))
+nnzero(vechs(getWmat(exposomePC_unthresholded[["graph"]]))) # 58
+sum(vechs(getWmat(exposomePC_unthresholded[["graph"]])) < 0) # 14
+mean(replace(exposomePC_unthresholded_lowerDiag,
+             exposomePC_unthresholded_lowerDiag==0,
+             NA),na.rm=T) # 0.276
+sd(replace(exposomePC_unthresholded_lowerDiag,
+             exposomePC_unthresholded_lowerDiag==0,
+             NA),na.rm=T) # 0.44
+range(replace(exposomePC_unthresholded_lowerDiag,
+             exposomePC_unthresholded_lowerDiag==0,
+             NA),na.rm=T) # 0-1
+
+nnzero(vechs(exposomePC_unthresholded[["graph"]][c(1:14),c(15:21)])) # 1
+sum(vechs(exposomePC_unthresholded[["graph"]][c(1:14),c(15:21)]) < 0) # 1
+```
+
+Thresholded exposome-participation coefficient bilayer networks
+(1) Model
+```{r}
+exposomePC_thresholded <- estimateNetwork(PC_exposome_df,
+                                   corMethod="cor",
+                                   corArgs=list(method="pearson",
+                                                use="pairwise.complete.obs"),
+                                   default="EBICglasso",
+                                   tuning=0.5,
+                                   threshold=T)
+```
+(2) Plot 
+```{r}
+plot(exposomePC_thresholded,color = exposomeColors,layout="spring",fade=T,
+     posCol=c("#386E4B"),negCol=c("#9D0080"),negDashed=T)
+```
+(3) Correlation stability test (estimated CS = 0.435)
+```{r}
+exposomePC_thresholded_boot <- bootnet(PC_exposome_df,
+                                         corMethod = "cor", 
+                      corArgs = list(method = "pearson",
+                                     use = "pairwise.complete.obs"),
+                      default = "EBICglasso",
+                      tuning = 0.5,
+                      threshold=T,
+                      nCores = 8,
+                      nBoots = 2000,
+                      type = "case", 
+                      statistics = c("edge"),
+                      communities = modalities)
+corStability(exposomePC_unthresholded_boot)
+```
+(4) Second correlation stability test (+/- 0.2; CS = 0.550)
+```{r}
+exposomePC_thresholded_boot_precise <- bootnet(PC_exposome_df,
+                                         corMethod = "cor", 
+                      corArgs = list(method = "pearson",
+                                     use = "pairwise.complete.obs"),
+                      default = "EBICglasso",
+                      tuning = 0.5,
+                      threshold=T,
+                      nCores = 8,
+                      nBoots = 2000,
+                      caseMin = 0.235, caseMax = 0.635,
+                      type = "case", 
+                      statistics = c("edge"),
+                      communities = modalities)
+corStability(exposomePC_thresholded_boot_precise)
+
+```
+(5) Descriptive statistics (incomplete)
+```{r}
+exposomePC_thresholded[["graph"]]["Lead","Defau"] # -0.20
+exposomePC_thresholded_lowerDiag <- matrix(vechs(getWmat(exposomePC_thresholded[["graph"]])))
+nnzero(vechs(getWmat(exposomePC_thresholded[["graph"]]))) # 24
+sum(vechs(getWmat(exposomePC_thresholded[["graph"]]))<0) # 24
+mean(replace(exposomePC_thresholded_lowerDiag,
+             exposomePC_thresholded_lowerDiag==0,
+             NA),na.rm=T) # 0.276
+sd(replace(exposomePC_thresholded_lowerDiag,
+             exposomePC_thresholded_lowerDiag==0,
+             NA),na.rm=T) # 0.44
+range(replace(exposomePC_thresholded_lowerDiag,
+             exposomePC_thresholded_lowerDiag==0,
+             NA),na.rm=T) # 0-1
+
+nnzero(vechs(exposomePC_thresholded[["graph"]][c(1:14),c(15:21)])) # 1
+sum(vechs(exposomePC_thresholded[["graph"]][c(1:14),c(15:21)]) < 0) # 1
+```
+
+Unthresholded exposome-clustering coefficient bilayer networks
+(1) Model
+```{r}
+exposomeCC_unthresholded <- estimateNetwork(CC_exposome_df,
+                                   corMethod="cor",
+                                   corArgs=list(method="pearson",
+                                                use="pairwise.complete.obs"),
+                                   default="EBICglasso",
+                                   tuning=0.5,
+                                   threshold=F)
+
+```
+(2) Plot - figure XX
+```{r}
+plot(exposomeCC_unthresholded,color = exposomeColors,layout="spring",fade=T,
+     posCol=c("#386E4B"),negCol=c("#9D0080"),negDashed=T)
+```
+(3) Correlation stability test (estimated CS = 0.519)
+```{r}
+exposomeCC_unthresholded_boot <- bootnet(CC_exposome_df,
+                                         corMethod = "cor", 
+                      corArgs = list(method = "pearson",
+                                     use = "pairwise.complete.obs"),
+                      default = "EBICglasso",
+                      tuning = 0.5,
+                      threshold=F,
+                      nCores = 8,
+                      nBoots = 2000,
+                      type = "case", 
+                      statistics = c("edge"),
+                      communities = modalities)
+corStability(exposomeCC_unthresholded_boot)
+```
+(4) Second correlation stability test (+/- 0.2; CS = 0.542)
+```{r}
+exposomeCC_unthresholded_boot_precise <- bootnet(CC_exposome_df,
+                                         corMethod = "cor", 
+                      corArgs = list(method = "pearson",
+                                     use = "pairwise.complete.obs"),
+                      default = "EBICglasso",
+                      tuning = 0.5,
+                      threshold=F,
+                      nCores = 8,
+                      nBoots = 2000,
+                      caseMin = 0.319, caseMax = 0.719,
+                      type = "case", 
+                      statistics = c("edge"),
+                      communities = modalities)
+corStability(exposomeCC_unthresholded_boot_precise)
+```
+(5) Descriptive statistics (incomplete)
+```{r}
+exposomeCC_unthresholded[["graph"]]["Lead","Defau"] # 0.04
+exposomeCC_unthresholded[["graph"]]["PartMatt","Contr"] # 0.04
+
+exposomeCC_unthresholded_lowerDiag <- matrix(vechs(getWmat(exposomeCC_unthresholded[["graph"]])))
+nnzero(vechs(getWmat(exposomeCC_unthresholded[["graph"]]))) # 24
+sum(vechs(getWmat(exposomeCC_unthresholded[["graph"]]))<0) # 24
+mean(replace(exposomeCC_unthresholded_lowerDiag,
+             exposomeCC_unthresholded_lowerDiag==0,
+             NA),na.rm=T) # 0.276
+sd(replace(exposomeCC_unthresholded_lowerDiag,
+             exposomeCC_unthresholded_lowerDiag==0,
+             NA),na.rm=T) # 0.44
+range(replace(exposomeCC_unthresholded_lowerDiag,
+             exposomeCC_unthresholded_lowerDiag==0,
+             NA),na.rm=T) # 0-1
+
+nnzero(vechs(exposomeCC_unthresholded[["graph"]][c(1:14),c(15:21)])) # 1
+sum(vechs(exposomeCC_unthresholded[["graph"]][c(1:14),c(15:21)]) < 0) # 1
+```
+
+Thresholded exposome-clustering coefficient bilayer networks
+(1) Model
+```{r}
+exposomeCC_thresholded <- estimateNetwork(CC_exposome_df,
+                                   corMethod="cor",
+                                   corArgs=list(method="pearson",
+                                                use="pairwise.complete.obs"),
+                                   default="EBICglasso",
+                                   tuning=0.5,
+                                   threshold=T)
+
+```
+(2) Plot 
+```{r}
+plot(exposomeCC_thresholded,color = exposomeColors,layout="spring",fade=T,
+     posCol=c("#386E4B"),negCol=c("#9D0080"),negDashed=T)
+```
+(3) Correlation stability test (estimated CS = 0.595)
+```{r}
+exposomeCC_thresholded_boot <- bootnet(CC_exposome_df,
+                                         corMethod = "cor", 
+                      corArgs = list(method = "pearson",
+                                     use = "pairwise.complete.obs"),
+                      default = "EBICglasso",
+                      tuning = 0.5,
+                      threshold=T,
+                      nCores = 8,
+                      nBoots = 2000,
+                      type = "case", 
+                      statistics = c("edge"),
+                      communities = modalities)
+corStability(exposomeCC_thresholded_boot)
+```
+(4) Second correlation stability test (+/- 0.2; CS = 0.573)
+```{r}
+exposomeCC_thresholded_boot_precise <- bootnet(CC_exposome_df,
+                                         corMethod = "cor", 
+                      corArgs = list(method = "pearson",
+                                     use = "pairwise.complete.obs"),
+                      default = "EBICglasso",
+                      tuning = 0.5,
+                      threshold=T,
+                      nCores = 8,
+                      nBoots = 2000,
+                      caseMin = 0.395, caseMax = 0.795,
+                      type = "case", 
+                      statistics = c("edge"),
+                      communities = modalities)
+corStability(exposomeCC_thresholded_boot_precise)
+```
+(5) Descriptive statistics (incomplete)
+```{r}
+exposomeCC_thresholded_lowerDiag <- matrix(vechs(getWmat(exposomeCC_thresholded[["graph"]])))
+nnzero(vechs(getWmat(exposomeCC_thresholded[["graph"]]))) # 24
+sum(vechs(getWmat(exposomeCC_thresholded[["graph"]]))<0) # 24
+mean(replace(exposomeCC_thresholded_lowerDiag,
+             exposomeCC_thresholded_lowerDiag==0,
+             NA),na.rm=T) # 0.276
+sd(replace(exposomeCC_thresholded_lowerDiag,
+             exposomeCC_thresholded_lowerDiag==0,
+             NA),na.rm=T) # 0.44
+range(replace(exposomeCC_thresholded_lowerDiag,
+             exposomeCC_thresholded_lowerDiag==0,
+             NA),na.rm=T) # 0-1
+
+nnzero(vechs(exposomeCC_thresholded[["graph"]][c(1:14),c(15:21)])) # 1
+sum(vechs(exposomeCC_thresholded[["graph"]][c(1:14),c(15:21)]) < 0) # 1
+```
+
+
+# Network modeling - STRUCTURAL MEASURES
+```{r}
+
+```
