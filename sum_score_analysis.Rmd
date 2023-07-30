@@ -1,0 +1,245 @@
+---
+title: "Sum score analysis for Market Profile crime indices"
+author: "Ivan L. Simpson-Kent (coding) and Martins M. Gatavins (curation)"
+date: "2023-07-28"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# R version 4.2.3
+# RStudio
+library(readr) # v 2.1.4
+library(dplyr) # v 1.1.1
+library(stringi) # v 1.7.12
+library(stringr) # v 1.5.0
+library(tidyr) # 1.3.0
+library(corrplot) # v 0.92
+library(qgraph) # v 1.9.4
+library(psychonetrics) # v 0.10
+library(networktools) # v 1.5.0
+library(Matrix) # v 1.5.3
+library(OpenMx) # v 2.21.1
+library(bootnet) # v 1.5
+library(reshape2) # v 1.4.4
+library(lavaan) # v 0.6-15
+library(semPlot)
+library(jmv)
+library(psych)
+```
+
+# Setup and initial testing
+## Data cleaning
+```{r setup, include=FALSE}
+workdir <- "~/Desktop/exposome_project/"
+load(paste0(workdir,"n190_funcStructExposomedata.RData"))
+structural_data <- joint_quest[joint_quest[["structural"]]==1,]
+functional_data <- joint_quest[joint_quest[["functional"]]==1,]
+crime_vars <- c('Murder','Rape','Assau','Robb','Burg','Lar')
+
+structural_crime <- functional_data[, crime_vars]
+functional_crime <- functional_data[, crime_vars]
+
+sapply(structural_crime, class) # check for numeric
+sapply(functional_crime, class) # check for numeric
+
+```
+## Test for data skewness
+### Structural sample
+```{r setup, include=FALSE}
+descriptives(data = structural_crime,
+             sd = T, #Lists standard deviations
+             variance = T, #Lists variances 
+             ci = T, #Lists confidence intervals (default: 95%)
+             boxLabelOutliers = T, #Lists rows with outliers
+             hist = T) #Creates histograms for variables
+```
+
+### Functional sample
+```{r setup, include=FALSE}
+descriptives(data = functional_crime,
+             sd = T, #Lists standard deviations
+             variance = T, #Lists variances 
+             ci = T, #Lists confidence intervals (default: 95%)
+             boxLabelOutliers = T, #Lists rows with outliers
+             hist = T) #Creates histograms for variables
+```
+
+#
+
+# Model formulas
+## Parallel one-factor
+```{r setup, include=FALSE}
+parallel_onefactor <- '
+#All loads are fixed to 1
+Crime=~1*Murder+1*Rape+1*Assau+1*Robb+1*Burg+1*Lar
+
+#Fix error (residual) variances (labeled ervar) are constrained to be equal across indicators
+Murder~~ervar*Murder
+Rape~~ervar*Rape
+Assau~~ervar*Assau
+Robb~~ervar*Robb
+Burg~~ervar*Burg
+Lar~~ervar*Lar
+'
+```
+## Congeneric one-factor
+```{r setup, include=FALSE}
+congeneric_onefactor <- '
+#All loadings are uniquely estimated; First loading set to 1 by default and must be freed
+Crime=~NA*Murder+Rape+Assau+Robb+Burg+Lar
+
+#Fix latent variable variance to 1
+Crime~~1*Crime
+'
+```
+## Congeneric two-factor
+```{r setup, include=FALSE}
+congeneric_twofactor <- '
+#All loadings are uniquely estimated; First loading set to 1 by default and must be freed
+ViolentCrime=~NA*Murder+Rape+Assau
+NonViolentCrime=~NA*Robb+Burg+Lar
+
+#Fix latent variable variances to 1
+ViolentCrime~~1*ViolentCrime
+NonViolentCrime~~1*NonViolentCrime
+
+#Estimate latent variable covariance
+ViolentCrime~~NonViolentCrime
+'
+```
+#
+
+# Exposome-structural measure sample (N=167)
+## Model fitting
+### Parallel one-factor
+```{r setup, include=FALSE}
+structural_parallel_onefactor <- sem(model = parallel_onefactor,
+                                     data = structural_crime,
+                                     missing = 'fiml',
+                                     estimator = 'MLR')
+semPaths(structural_parallel_onefactor, what = "std")
+summary(structural_parallel_onefactor, 
+        fit.measures=TRUE,
+        standardized=TRUE,
+        rsquare=TRUE,
+        ci=TRUE)
+```
+### Congeneric one-factor
+```{r setup, include=FALSE}
+structural_congeneric_onefactor <- sem(model = congeneric_onefactor,
+                                       data = structural_crime,
+                                       missing = 'fiml',
+                                       estimator = 'MLR')
+semPaths(structural_congeneric_onefactor, what = "std")
+summary(structural_congeneric_onefactor, 
+        fit.measures=TRUE,
+        standardized=TRUE,
+        rsquare=TRUE,
+        ci=TRUE)
+```
+### Congeneric two-factor
+```{r setup, include=FALSE}
+structural_congeneric_twofactor <- sem(model = congeneric_onefactor,
+                                       data = structural_crime,
+                                       missing = 'fiml',
+                                       estimator = 'MLR')
+semPaths(structural_congeneric_twofactor, what = "std")
+summary(structural_congeneric_twofactor, 
+        fit.measures=TRUE,
+        standardized=TRUE,
+        rsquare=TRUE,
+        ci=TRUE)
+```
+
+## Model comparisons using likelihood ratio tests
+### Parallel one-factor & congeneric one-factor models
+```{r setup, include=FALSE}
+anova(structural_parallel_onefactor,
+      structural_congeneric_onefactor)
+```
+### Congeneric one-factor & two-factor models
+```{r setup, include=FALSE}
+anova(structural_congeneric_onefactor,
+      structural_congeneric_twofactor)
+```
+#
+
+# Exposome-functional measure sample (N=131)
+## Model fitting
+### Parallel one-factor
+```{r setup, include=FALSE}
+
+```
+### Congeneric one-factor
+```{r setup, include=FALSE}
+
+```
+### Congeneric two-factor
+```{r setup, include=FALSE}
+
+```
+
+## Model comparisons using likelihood ratio tests
+### Parallel one-factor & congeneric one-factor models
+```{r setup, include=FALSE}
+
+```
+### Congeneric one-factor & two-factor models
+```{r setup, include=FALSE}
+
+```
+## Model fitting
+### Parallel one-factor
+```{r setup, include=FALSE}
+functional_parallel_onefactor <- sem(model = parallel_onefactor,
+                                     data = functional_crime,
+                                     missing = 'fiml',
+                                     estimator = 'MLR')
+semPaths(functional_parallel_onefactor, what = "std")
+summary(functional_parallel_onefactor, 
+        fit.measures=TRUE,
+        standardized=TRUE,
+        rsquare=TRUE,
+        ci=TRUE)
+```
+### Congeneric one-factor
+```{r setup, include=FALSE}
+functional_congeneric_onefactor <- sem(model = congeneric_onefactor,
+                                       data = functional_crime,
+                                       missing = 'fiml',
+                                       estimator = 'MLR')
+semPaths(functional_congeneric_onefactor, what = "std")
+summary(functional_congeneric_onefactor, 
+        fit.measures=TRUE,
+        standardized=TRUE,
+        rsquare=TRUE,
+        ci=TRUE)
+```
+### Congeneric two-factor
+```{r setup, include=FALSE}
+functional_congeneric_twofactor <- sem(model = congeneric_onefactor,
+                                       data = functional_crime,
+                                       missing = 'fiml',
+                                       estimator = 'MLR')
+semPaths(functional_congeneric_twofactor, what = "std")
+summary(functional_congeneric_twofactor, 
+        fit.measures=TRUE,
+        standardized=TRUE,
+        rsquare=TRUE,
+        ci=TRUE)
+```
+
+## Model comparisons using likelihood ratio tests
+### Parallel one-factor & congeneric one-factor models
+```{r setup, include=FALSE}
+anova(functional_parallel_onefactor,
+      functional_congeneric_onefactor)
+```
+### Congeneric one-factor & two-factor models
+```{r setup, include=FALSE}
+anova(functional_congeneric_onefactor,
+      functional_congeneric_twofactor)
+```
+#
+
