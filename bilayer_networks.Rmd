@@ -1,7 +1,6 @@
 ---
-title: "Bilayer_networks_structural_functional"
-author: "Martins M Gatavins & Ivan L Simpson-Kent"
-date: "2023-04-12"
+title: "Bilayer network fitting, modeling, and analysis"
+authors: "Ivan L. Simpson-Kent (coding) and Martins M. Gatavins (coding, data & code curation)"
 output: html_document
 ---
 
@@ -21,7 +20,6 @@ library(networktools) # v 1.5.0
 library(Matrix) # v 1.5.3
 library(OpenMx) # v 2.21.1
 library(bootnet) # v 1.5
-#library(NetworkComparisonTest) # v 2.2.1
 library(reshape2) # v 1.4.4
 library(lavaan) # v 0.6-15
 library(semPlot)
@@ -62,7 +60,7 @@ colnames(CC_exposome_df) <- gsub("_CC_resid","",colnames(CC_exposome_df))
 colnames(SA_exposome_df) <- gsub("SA","",colnames(SA_exposome_df))
 colnames(CT_exposome_df) <- gsub("CT","",colnames(CT_exposome_df))
 
-set.seed(125) # for replication
+set.seed(123) # for replication
 ```
 
 Setting up organization elements for plots
@@ -72,12 +70,279 @@ exposomeColors<-c("white","white","white","white","white","white","white",
                   "white",'white',"white","white","white","white","white",
                   "grey","grey","grey","grey","grey","grey","grey")
 modalities <- c(1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2)
+readable_node_names <- c("Gini (Inequality)","Unemployed","Bachelor's Degree",
+                         "Particulate Matter","Blood Lead Level","Murder",
+                         "Sexual Assault (Rape)","Robbery",
+                         "Aggravated Assault","Larceny","Burglary",
+                         "Childhood Adversity","Parent Education","Parent Income",
+                         "Visual","Motor","Dorsal Attention","Ventral Attention",
+                         "Limbic","Control","Default")
 ```
+
+#
+
+# Network modeling - STRUCTURAL MEASURES
+
+## Unthresholded exposome-cortical surface area bilayer network
+### (1) Model
+```{r}
+exposomeSA_unthresholded <- estimateNetwork(SA_exposome_df,
+                                   corMethod="cor",
+                                   corArgs=list(method="pearson",
+                                                use="pairwise.complete.obs"),
+                                   default="EBICglasso",
+                                   tuning=0.5,
+                                   threshold=F)
+```
+### (2) Plot - figure 1A
+```{r}
+pdf(file=paste0(workdir,"fig1a.pdf"))
+plot(exposomeSA_unthresholded,color = exposomeColors,layout="spring",fade=T,
+     posCol=c("#386E4B"),negCol=c("#9D0080"))
+dev.off()
+```
+### (3) Correlation stability test
+```{r}
+exposomeSA_unthresholded_boot <- bootnet(SA_exposome_df,
+                                         corMethod = "cor", 
+                      corArgs = list(method = "pearson",
+                                     use = "pairwise.complete.obs"),
+                      default = "EBICglasso",
+                      tuning = 0.5,
+                      threshold=F,
+                      nCores = 8,
+                      nBoots = 2000,
+                      type = "case", 
+                      statistics = c("edge",
+                                     "bridgeStrength",
+                                     "bridgeExpectedInfluence"),
+                      communities = modalities)
+corStability(exposomeSA_unthresholded_boot)
+```
+
+### (4) Descriptive statistics  
+```{r}
+exposomeSA_unthresholded[["graph"]]["Limb","SESinc"]
+exposomeSA_unthresholded[["graph"]]["Limb","Rape"]
+exposomeSA_unthresholded[["graph"]]["Limb","Murder"]
+
+exposomeSA_unthresholded[["graph"]]["Vis","SESinc"]
+exposomeSA_unthresholded[["graph"]]["Vis","Gini"]
+exposomeSA_unthresholded[["graph"]]["Vis","Unemp16"]
+
+exposomeSA_unthresholded[["graph"]]["DorAtt","Bach25"]
+
+exposomeSA_unthresholded[["graph"]]["VenAtt","Lead"]
+
+exposomeSA_unthresholded_lowerDiag <- matrix(vechs(getWmat(exposomeSA_unthresholded[["graph"]])))
+nnzero(vechs(getWmat(exposomeSA_unthresholded[["graph"]])))
+sum(vechs(getWmat(exposomeSA_unthresholded[["graph"]])) < 0)
+mean(replace(exposomeSA_unthresholded_lowerDiag,
+             exposomeSA_unthresholded_lowerDiag==0,
+             NA),na.rm=T)
+sd(replace(exposomeSA_unthresholded_lowerDiag,
+             exposomeSA_unthresholded_lowerDiag==0,
+             NA),na.rm=T)
+range(replace(exposomeSA_unthresholded_lowerDiag,
+             exposomeSA_unthresholded_lowerDiag==0,
+             NA),na.rm=T)
+
+nnzero(exposomeSA_unthresholded[["graph"]][c(1:14),c(15:21)])
+sum(exposomeSA_unthresholded[["graph"]][c(1:14),c(15:21)] < 0)
+```
+
+## Thresholded exposome-cortical surface area bilayer network
+### (1) Model
+```{r}
+exposomeSA_thresholded <- estimateNetwork(SA_exposome_df,
+                                   corMethod="cor",
+                                   corArgs=list(method="pearson",
+                                                use="pairwise.complete.obs"),
+                                   default="EBICglasso",
+                                   tuning=0.5,
+                                   threshold=T)
+```
+### (2) Plot - figure 1B
+```{r}
+pdf(file=paste0(workdir,"fig1b.pdf"))
+plot(exposomeSA_thresholded,color = exposomeColors,layout="spring",fade=T,
+     posCol=c("#386E4B"),negCol=c("#9D0080"))
+dev.off()
+```
+### (3) Correlation stability test
+```{r}
+exposomeSA_thresholded_boot <- bootnet(SA_exposome_df,
+                                         corMethod = "cor", 
+                      corArgs = list(method = "pearson",
+                                     use = "pairwise.complete.obs"),
+                      default = "EBICglasso",
+                      tuning = 0.5,
+                      threshold=T,
+                      nCores = 8,
+                      nBoots = 2000,
+                      type = "case", 
+                      statistics = c("edge"),
+                      communities = modalities)
+corStability(exposomeSA_thresholded_boot)
+```
+
+### (5) Descriptive statistics  
+```{r}
+exposomeSA_thresholded[["graph"]]["Limb","Murder"]
+
+exposomeSA_thresholded_lowerDiag <- matrix(vechs(getWmat(exposomeSA_thresholded[["graph"]])))
+nnzero(vechs(getWmat(exposomeSA_thresholded[["graph"]])))
+sum(vechs(getWmat(exposomeSA_thresholded[["graph"]]))<0)
+mean(replace(exposomeSA_thresholded_lowerDiag,
+             exposomeSA_thresholded_lowerDiag==0,
+             NA),na.rm=T) # 0.276
+sd(replace(exposomeSA_thresholded_lowerDiag,
+             exposomeSA_thresholded_lowerDiag==0,
+             NA),na.rm=T) # 0.44
+range(replace(exposomeSA_thresholded_lowerDiag,
+              exposomeSA_thresholded_lowerDiag==0,
+              NA),na.rm=T) # 0-1
+
+nnzero(exposomeSA_thresholded[["graph"]][c(1:14),c(15:21)])
+sum(exposomeSA_thresholded[["graph"]][c(1:14),c(15:21)] < 0) 
+```
+
+
+## Unthresholded exposome-cortical thickness bilayer network
+### (1) Model
+```{r}
+exposomeCT_unthresholded <- estimateNetwork(CT_exposome_df,
+                                   corMethod="cor",
+                                   corArgs=list(method="pearson",
+                                                use="pairwise.complete.obs"),
+                                   default="EBICglasso",
+                                   tuning=0.5,
+                                   threshold=F)
+```
+### (2) Plot - figure 1C
+```{r}
+pdf(file=paste0(workdir,"fig1c.pdf"))
+plot(exposomeCT_unthresholded,color = exposomeColors,layout="spring",fade=T,
+     posCol=c("#386E4B"),negCol=c("#9D0080"))
+dev.off()
+```
+### (3) Correlation stability test
+```{r}
+exposomeCT_unthresholded_boot <- bootnet(CT_exposome_df,
+                                         corMethod = "cor", 
+                      corArgs = list(method = "pearson",
+                                     use = "pairwise.complete.obs"),
+                      default = "EBICglasso",
+                      tuning = 0.5,
+                      threshold=F,
+                      nCores = 8,
+                      nBoots = 2000,
+                      type = "case", 
+                      statistics = c("edge",
+                                     "bridgeStrength",
+                                     "bridgeExpectedInfluence"),
+                      communities = modalities)
+corStability(exposomeCT_unthresholded_boot)
+```
+### (4) Descriptive statistics  
+```{r}
+exposomeCT_unthresholded[["graph"]]["Vis","SESinc"]
+exposomeCT_unthresholded[["graph"]]["Vis","SESedu"]
+exposomeCT_unthresholded[["graph"]]["Vis","Bach25"]
+
+exposomeCT_unthresholded[["graph"]]["VenAtt","Unemp16"]
+exposomeCT_unthresholded[["graph"]]["VenAtt","Burg"]
+
+exposomeCT_unthresholded[["graph"]]["Limb","Robb"]
+exposomeCT_unthresholded[["graph"]]["Limb","Assau"]
+
+exposomeCT_unthresholded[["graph"]]["Motor","SESedu"]
+exposomeCT_unthresholded[["graph"]]["Motor","Unemp16"]
+
+exposomeCT_unthresholded[["graph"]]["Defau","Gini"]
+
+exposomeCT_unthresholded[["graph"]]["Contr","Gini"]
+
+exposomeCT_unthresholded_lowerDiag <- matrix(vechs(getWmat(exposomeCT_unthresholded[["graph"]])))
+nnzero(vechs(getWmat(exposomeCT_unthresholded[["graph"]]))) # 24
+sum(vechs(getWmat(exposomeCT_unthresholded[["graph"]]))<0) # 24
+mean(replace(exposomeCT_unthresholded_lowerDiag,
+             exposomeCT_unthresholded_lowerDiag==0,
+             NA),na.rm=T) # 0.276
+sd(replace(exposomeCT_unthresholded_lowerDiag,
+             exposomeCT_unthresholded_lowerDiag==0,
+             NA),na.rm=T) # 0.44
+range(replace(exposomeCT_unthresholded_lowerDiag,
+             exposomeCT_unthresholded_lowerDiag==0,
+             NA),na.rm=T) # 0-1
+
+nnzero(exposomeCT_unthresholded[["graph"]][c(1:14),c(15:21)]) # 1
+sum(exposomeCT_unthresholded[["graph"]][c(1:14),c(15:21)] < 0) # 1
+```
+
+## Thresholded exposome-cortical thickness bilayer network
+### (1) Model
+```{r}
+exposomeCT_thresholded <- estimateNetwork(CT_exposome_df,
+                                   corMethod="cor",
+                                   corArgs=list(method="pearson",
+                                                use="pairwise.complete.obs"),
+                                   default="EBICglasso",
+                                   tuning=0.5,
+                                   threshold=T)
+```
+### (2) Plot - figure 1D
+```{r}
+pdf(file=paste0(workdir,"fig1d.pdf"))
+plot(exposomeCT_thresholded,color = exposomeColors,layout="spring",fade=T,
+     posCol=c("#386E4B"),negCol=c("#9D0080"))
+dev.off()
+```
+### (3) Correlation stability test
+```{r}
+exposomeCT_thresholded_boot <- bootnet(CT_exposome_df,
+                                         corMethod = "cor", 
+                      corArgs = list(method = "pearson",
+                                     use = "pairwise.complete.obs"),
+                      default = "EBICglasso",
+                      tuning = 0.5,
+                      threshold=T,
+                      nCores = 8,
+                      nBoots = 2000,
+                      type = "case", 
+                      statistics = c("edge"),
+                      communities = modalities)
+corStability(exposomeCT_thresholded_boot)
+```
+
+### (4) Descriptive statistics  
+```{r}
+exposomeCT_thresholded[["graph"]]["Vis","SESinc"]
+
+exposomeCT_thresholded_lowerDiag <- matrix(vechs(getWmat(exposomeCT_thresholded[["graph"]])))
+nnzero(vechs(getWmat(exposomeCT_thresholded[["graph"]])))
+sum(vechs(getWmat(exposomeCT_thresholded[["graph"]]))<0)
+mean(replace(exposomeCT_thresholded_lowerDiag,
+             exposomeCT_thresholded_lowerDiag==0,
+             NA),na.rm=T) # 0.276
+sd(replace(exposomeCT_thresholded_lowerDiag,
+             exposomeCT_thresholded_lowerDiag==0,
+             NA),na.rm=T) # 0.44
+range(replace(exposomeCT_thresholded_lowerDiag,
+             exposomeCT_thresholded_lowerDiag==0,
+             NA),na.rm=T) # 0-1
+
+nnzero(exposomeCT_thresholded[["graph"]][c(1:14),c(15:21)])
+sum(exposomeCT_thresholded[["graph"]][c(1:14),c(15:21)] < 0)
+```
+
+
+#
 
 # Network modeling - FUNCTIONAL MEASURES
 
-Unthresholded exposome-participation coefficient bilayer networks
-(1) Model
+## Unthresholded exposome-participation coefficient bilayer network
+### (1) Model
 ```{r}
 exposomePC_unthresholded <- estimateNetwork(PC_exposome_df,
                                    corMethod="cor",
@@ -88,12 +353,14 @@ exposomePC_unthresholded <- estimateNetwork(PC_exposome_df,
                                    threshold=F)
 
 ```
-(2) Plot 
+### (2) Plot - figure 3A
 ```{r}
+pdf(file=paste0(workdir,"fig3a.pdf"))
 plot(exposomePC_unthresholded,color = exposomeColors,layout="spring",fade=T,
-     posCol=c("#386E4B"),negCol=c("#9D0080"),negDashed=T)
+     posCol=c("#386E4B"),negCol=c("#9D0080"))
+dev.off()
 ```
-(3) Correlation stability test (range: ~ 0.435, 0.359-0.519)
+### (3) Correlation stability test
 ```{r}
 exposomePC_unthresholded_boot <- bootnet(PC_exposome_df,
                                          corMethod = "cor", 
@@ -108,28 +375,13 @@ exposomePC_unthresholded_boot <- bootnet(PC_exposome_df,
                       communities = modalities)
 corStability(exposomePC_unthresholded_boot)
 ```
-(4) Second correlation stability test (+/- 0.2; CS = 0.504)
+### (4) Descriptive statistics 
 ```{r}
-exposomePC_unthresholded_boot_precise <- bootnet(PC_exposome_df,
-                                         corMethod = "cor", 
-                      corArgs = list(method = "pearson",
-                                     use = "pairwise.complete.obs"),
-                      default = "EBICglasso",
-                      tuning = 0.5,
-                      nCores = 8,
-                      nBoots = 2000,
-                      type = "case", 
-                      statistics = c("edge"),
-                      caseMin = 0.235, caseMax = 0.635,
-                      communities = modalities)
-corStability(exposomePC_unthresholded_boot_precise)
-```
-(5) Descriptive statistics (incomplete)
-```{r}
-exposomePC_unthresholded[["graph"]]["Lead","Defau"] # -0.04
+exposomePC_unthresholded[["graph"]]["Lead","Defau"]
+
 exposomePC_unthresholded_lowerDiag <- matrix(vechs(getWmat(exposomePC_unthresholded[["graph"]])))
-nnzero(vechs(getWmat(exposomePC_unthresholded[["graph"]]))) # 58
-sum(vechs(getWmat(exposomePC_unthresholded[["graph"]])) < 0) # 14
+nnzero(vechs(getWmat(exposomePC_unthresholded[["graph"]])))
+sum(vechs(getWmat(exposomePC_unthresholded[["graph"]])) < 0)
 mean(replace(exposomePC_unthresholded_lowerDiag,
              exposomePC_unthresholded_lowerDiag==0,
              NA),na.rm=T) # 0.276
@@ -140,12 +392,12 @@ range(replace(exposomePC_unthresholded_lowerDiag,
              exposomePC_unthresholded_lowerDiag==0,
              NA),na.rm=T) # 0-1
 
-nnzero(vechs(exposomePC_unthresholded[["graph"]][c(1:14),c(15:21)])) # 1
-sum(vechs(exposomePC_unthresholded[["graph"]][c(1:14),c(15:21)]) < 0) # 1
+nnzero(exposomePC_unthresholded[["graph"]][c(1:14),c(15:21)])
+sum(exposomePC_unthresholded[["graph"]][c(1:14),c(15:21)] < 0)
 ```
 
-Thresholded exposome-participation coefficient bilayer networks
-(1) Model
+## Thresholded exposome-participation coefficient bilayer network
+### (1) Model
 ```{r}
 exposomePC_thresholded <- estimateNetwork(PC_exposome_df,
                                    corMethod="cor",
@@ -155,12 +407,14 @@ exposomePC_thresholded <- estimateNetwork(PC_exposome_df,
                                    tuning=0.5,
                                    threshold=T)
 ```
-(2) Plot 
+### (2) Plot - figure 3B
 ```{r}
+pdf(file=paste0(workdir,"fig3b.pdf"))
 plot(exposomePC_thresholded,color = exposomeColors,layout="spring",fade=T,
-     posCol=c("#386E4B"),negCol=c("#9D0080"),negDashed=T)
+     posCol=c("#386E4B"),negCol=c("#9D0080"))
+dev.off()
 ```
-(3) Correlation stability test (estimated CS = 0.435)
+### (3) Correlation stability test
 ```{r}
 exposomePC_thresholded_boot <- bootnet(PC_exposome_df,
                                          corMethod = "cor", 
@@ -174,32 +428,15 @@ exposomePC_thresholded_boot <- bootnet(PC_exposome_df,
                       type = "case", 
                       statistics = c("edge"),
                       communities = modalities)
-corStability(exposomePC_unthresholded_boot)
+corStability(exposomePC_thresholded_boot)
 ```
-(4) Second correlation stability test (+/- 0.2; CS = 0.550)
-```{r}
-exposomePC_thresholded_boot_precise <- bootnet(PC_exposome_df,
-                                         corMethod = "cor", 
-                      corArgs = list(method = "pearson",
-                                     use = "pairwise.complete.obs"),
-                      default = "EBICglasso",
-                      tuning = 0.5,
-                      threshold=T,
-                      nCores = 8,
-                      nBoots = 2000,
-                      caseMin = 0.235, caseMax = 0.635,
-                      type = "case", 
-                      statistics = c("edge"),
-                      communities = modalities)
-corStability(exposomePC_thresholded_boot_precise)
-
-```
-(5) Descriptive statistics (incomplete)
+### (4) Descriptive statistics  
 ```{r}
 exposomePC_thresholded[["graph"]]["Lead","Defau"] # -0.20
+
 exposomePC_thresholded_lowerDiag <- matrix(vechs(getWmat(exposomePC_thresholded[["graph"]])))
-nnzero(vechs(getWmat(exposomePC_thresholded[["graph"]]))) # 24
-sum(vechs(getWmat(exposomePC_thresholded[["graph"]]))<0) # 24
+nnzero(vechs(getWmat(exposomePC_thresholded[["graph"]])))
+sum(vechs(getWmat(exposomePC_thresholded[["graph"]]))<0)
 mean(replace(exposomePC_thresholded_lowerDiag,
              exposomePC_thresholded_lowerDiag==0,
              NA),na.rm=T) # 0.276
@@ -210,12 +447,13 @@ range(replace(exposomePC_thresholded_lowerDiag,
              exposomePC_thresholded_lowerDiag==0,
              NA),na.rm=T) # 0-1
 
-nnzero(vechs(exposomePC_thresholded[["graph"]][c(1:14),c(15:21)])) # 1
-sum(vechs(exposomePC_thresholded[["graph"]][c(1:14),c(15:21)]) < 0) # 1
+nnzero(exposomePC_thresholded[["graph"]][c(1:14),c(15:21)])
+sum(exposomePC_thresholded[["graph"]][c(1:14),c(15:21)] < 0)
 ```
 
-Unthresholded exposome-clustering coefficient bilayer networks
-(1) Model
+
+## Unthresholded exposome-clustering coefficient bilayer network
+### (1) Model
 ```{r}
 exposomeCC_unthresholded <- estimateNetwork(CC_exposome_df,
                                    corMethod="cor",
@@ -226,12 +464,14 @@ exposomeCC_unthresholded <- estimateNetwork(CC_exposome_df,
                                    threshold=F)
 
 ```
-(2) Plot - figure XX
+### (2) Plot - figure 3C
 ```{r}
+pdf(file=paste0(workdir,"fig3c.pdf"))
 plot(exposomeCC_unthresholded,color = exposomeColors,layout="spring",fade=T,
-     posCol=c("#386E4B"),negCol=c("#9D0080"),negDashed=T)
+     posCol=c("#386E4B"),negCol=c("#9D0080"))
+dev.off()
 ```
-(3) Correlation stability test (estimated CS = 0.519)
+### (3) Correlation stability test
 ```{r}
 exposomeCC_unthresholded_boot <- bootnet(CC_exposome_df,
                                          corMethod = "cor", 
@@ -247,27 +487,10 @@ exposomeCC_unthresholded_boot <- bootnet(CC_exposome_df,
                       communities = modalities)
 corStability(exposomeCC_unthresholded_boot)
 ```
-(4) Second correlation stability test (+/- 0.2; CS = 0.542)
+### (4) Descriptive statistics
 ```{r}
-exposomeCC_unthresholded_boot_precise <- bootnet(CC_exposome_df,
-                                         corMethod = "cor", 
-                      corArgs = list(method = "pearson",
-                                     use = "pairwise.complete.obs"),
-                      default = "EBICglasso",
-                      tuning = 0.5,
-                      threshold=F,
-                      nCores = 8,
-                      nBoots = 2000,
-                      caseMin = 0.319, caseMax = 0.719,
-                      type = "case", 
-                      statistics = c("edge"),
-                      communities = modalities)
-corStability(exposomeCC_unthresholded_boot_precise)
-```
-(5) Descriptive statistics (incomplete)
-```{r}
-exposomeCC_unthresholded[["graph"]]["Lead","Defau"] # 0.04
-exposomeCC_unthresholded[["graph"]]["PartMatt","Contr"] # 0.04
+exposomeCC_unthresholded[["graph"]]["Lead","Defau"]
+exposomeCC_unthresholded[["graph"]]["PartMatt","Contr"]
 
 exposomeCC_unthresholded_lowerDiag <- matrix(vechs(getWmat(exposomeCC_unthresholded[["graph"]])))
 nnzero(vechs(getWmat(exposomeCC_unthresholded[["graph"]]))) # 24
@@ -282,12 +505,12 @@ range(replace(exposomeCC_unthresholded_lowerDiag,
              exposomeCC_unthresholded_lowerDiag==0,
              NA),na.rm=T) # 0-1
 
-nnzero(vechs(exposomeCC_unthresholded[["graph"]][c(1:14),c(15:21)])) # 1
-sum(vechs(exposomeCC_unthresholded[["graph"]][c(1:14),c(15:21)]) < 0) # 1
+nnzero(exposomeCC_unthresholded[["graph"]][c(1:14),c(15:21)])
+sum(exposomeCC_unthresholded[["graph"]][c(1:14),c(15:21)] < 0)
 ```
 
-Thresholded exposome-clustering coefficient bilayer networks
-(1) Model
+## Thresholded exposome-clustering coefficient bilayer network
+### (1) Model
 ```{r}
 exposomeCC_thresholded <- estimateNetwork(CC_exposome_df,
                                    corMethod="cor",
@@ -298,12 +521,13 @@ exposomeCC_thresholded <- estimateNetwork(CC_exposome_df,
                                    threshold=T)
 
 ```
-(2) Plot 
+### (2) Plot - figure 3D
 ```{r}
+pdf(file=paste0(workdir,"fig3d.pdf"))
 plot(exposomeCC_thresholded,color = exposomeColors,layout="spring",fade=T,
-     posCol=c("#386E4B"),negCol=c("#9D0080"),negDashed=T)
+     posCol=c("#386E4B"),negCol=c("#9D0080"))
 ```
-(3) Correlation stability test (estimated CS = 0.595)
+### (3) Correlation stability test
 ```{r}
 exposomeCC_thresholded_boot <- bootnet(CC_exposome_df,
                                          corMethod = "cor", 
@@ -319,28 +543,11 @@ exposomeCC_thresholded_boot <- bootnet(CC_exposome_df,
                       communities = modalities)
 corStability(exposomeCC_thresholded_boot)
 ```
-(4) Second correlation stability test (+/- 0.2; CS = 0.573)
-```{r}
-exposomeCC_thresholded_boot_precise <- bootnet(CC_exposome_df,
-                                         corMethod = "cor", 
-                      corArgs = list(method = "pearson",
-                                     use = "pairwise.complete.obs"),
-                      default = "EBICglasso",
-                      tuning = 0.5,
-                      threshold=T,
-                      nCores = 8,
-                      nBoots = 2000,
-                      caseMin = 0.395, caseMax = 0.795,
-                      type = "case", 
-                      statistics = c("edge"),
-                      communities = modalities)
-corStability(exposomeCC_thresholded_boot_precise)
-```
-(5) Descriptive statistics (incomplete)
+### (4) Descriptive statistics
 ```{r}
 exposomeCC_thresholded_lowerDiag <- matrix(vechs(getWmat(exposomeCC_thresholded[["graph"]])))
-nnzero(vechs(getWmat(exposomeCC_thresholded[["graph"]]))) # 24
-sum(vechs(getWmat(exposomeCC_thresholded[["graph"]]))<0) # 24
+nnzero(vechs(getWmat(exposomeCC_thresholded[["graph"]])))
+sum(vechs(getWmat(exposomeCC_thresholded[["graph"]]))<0)
 mean(replace(exposomeCC_thresholded_lowerDiag,
              exposomeCC_thresholded_lowerDiag==0,
              NA),na.rm=T) # 0.276
@@ -351,12 +558,374 @@ range(replace(exposomeCC_thresholded_lowerDiag,
              exposomeCC_thresholded_lowerDiag==0,
              NA),na.rm=T) # 0-1
 
-nnzero(vechs(exposomeCC_thresholded[["graph"]][c(1:14),c(15:21)])) # 1
-sum(vechs(exposomeCC_thresholded[["graph"]][c(1:14),c(15:21)]) < 0) # 1
+nnzero(exposomeCC_thresholded[["graph"]][c(1:14),c(15:21)])
+sum(exposomeCC_thresholded[["graph"]][c(1:14),c(15:21)] < 0)
 ```
 
 
-# Network modeling - STRUCTURAL MEASURES
+
+
+#
+
+# Centrality analysis - ONLY STRUCTURAL NETWORKS
+
+## Extracting bridge strength and expected influence values & setup
 ```{r}
+exposomeSA_unthresholded_bridgeCentrality <- bridge(exposomeSA_unthresholded$graph,
+                                                    communities = modalities,
+                                                    normalize = TRUE)
+
+exposomeSA_unthresholded_bridgeCentrality$`Bridge Strength` <- 
+  ((exposomeSA_unthresholded_bridgeCentrality$`Bridge Strength` -
+    mean(exposomeSA_unthresholded_bridgeCentrality$`Bridge Strength`)) /
+    sd(exposomeSA_unthresholded_bridgeCentrality$`Bridge Strength`))
+
+exposomeSA_unthresholded_bridgeCentrality$`Bridge Expected Influence (1-step)` <- 
+  ((exposomeSA_unthresholded_bridgeCentrality$`Bridge Expected Influence (1-step)` -
+    mean(exposomeSA_unthresholded_bridgeCentrality$`Bridge Expected Influence (1-step)`)) /
+    sd(exposomeSA_unthresholded_bridgeCentrality$`Bridge Expected Influence (1-step)`))
+
+exposomeCT_unthresholded_bridgeCentrality <- bridge(exposomeCT_unthresholded$graph,
+                                                    communities = modalities,
+                                                    normalize = TRUE)
+
+exposomeCT_unthresholded_bridgeCentrality$`Bridge Strength` <- 
+  ((exposomeCT_unthresholded_bridgeCentrality$`Bridge Strength` -
+    mean(exposomeCT_unthresholded_bridgeCentrality$`Bridge Strength`)) /
+    sd(exposomeCT_unthresholded_bridgeCentrality$`Bridge Strength`))
+
+exposomeCT_unthresholded_bridgeCentrality$`Bridge Expected Influence (1-step)` <- 
+  ((exposomeCT_unthresholded_bridgeCentrality$`Bridge Expected Influence (1-step)` -
+    mean(exposomeCT_unthresholded_bridgeCentrality$`Bridge Expected Influence (1-step)`)) /
+    sd(exposomeCT_unthresholded_bridgeCentrality$`Bridge Expected Influence (1-step)`))
+
+exposomeSA_bridgeStrengthZScores <- melt(exposomeSA_unthresholded_bridgeCentrality$`Bridge Strength`)
+colnames(exposomeSA_bridgeStrengthZScores) <- "BridgeStrength_ZScores"
+
+exposomeSA_bridgeStrengthZScores$node <- rep(readable_node_names,times=1)
+exposomeSA_bridgeStrengthZScores$group <- c(rep("Exposome", 14), rep("Surface Area", 7))
+colnames(exposomeSA_bridgeStrengthZScores) <- c("Value","Node","Group")
+exposomeSA_bridgeStrengthZScores$Group<-factor(exposomeSA_bridgeStrengthZScores$Group, 
+                                               levels = unique(exposomeSA_bridgeStrengthZScores$Group))
+
+
+exposomeCT_bridgeStrengthZScores <- melt(exposomeCT_unthresholded_bridgeCentrality$`Bridge Strength`)
+colnames(exposomeCT_bridgeStrengthZScores) <- "BridgeStrength_ZScores"
+
+exposomeCT_bridgeStrengthZScores$node <- rep(readable_node_names,times=1)
+exposomeCT_bridgeStrengthZScores$group <- c(rep("Exposome", 14), rep("Cortical Thickness", 7))
+colnames(exposomeCT_bridgeStrengthZScores) <- c("Value","Node","Group")
+exposomeCT_bridgeStrengthZScores$Group<-factor(exposomeCT_bridgeStrengthZScores$Group, 
+                                               levels = unique(exposomeCT_bridgeStrengthZScores$Group))
+
+exposomeSA_bridgeExpectedInfluenceZScores<-melt(exposomeSA_unthresholded_bridgeCentrality$
+                                          `Bridge Expected Influence (1-step)`)
+colnames(exposomeSA_bridgeExpectedInfluenceZScores)<-"BridgeExpectedInfluence_ZScores"
+
+exposomeSA_bridgeExpectedInfluenceZScores$node <- rep(readable_node_names,times=1)
+exposomeSA_bridgeExpectedInfluenceZScores$group <- c(rep("Exposome", 14), rep("Surface Area", 7))
+colnames(exposomeSA_bridgeExpectedInfluenceZScores) <- c("Value","Node","Group")
+exposomeSA_bridgeExpectedInfluenceZScores$Group<-factor(exposomeSA_bridgeExpectedInfluenceZScores$Group, 
+                                                        levels = unique(
+                                                          exposomeSA_bridgeExpectedInfluenceZScores$Group))
+
+exposomeCT_bridgeExpectedInfluenceZScores<-melt(exposomeCT_unthresholded_bridgeCentrality$
+                                          `Bridge Expected Influence (1-step)`)
+colnames(exposomeCT_bridgeExpectedInfluenceZScores)<-"BridgeExpectedInfluence_ZScores"
+
+exposomeCT_bridgeExpectedInfluenceZScores$node <- rep(readable_node_names,times=1)
+exposomeCT_bridgeExpectedInfluenceZScores$group <- c(rep("Exposome", 14), rep("Cortical Thickness", 7))
+colnames(exposomeCT_bridgeExpectedInfluenceZScores) <- c("Value","Node","Group")
+exposomeCT_bridgeExpectedInfluenceZScores$Group<-factor(exposomeCT_bridgeExpectedInfluenceZScores$Group, 
+                                                        levels = unique(
+                                                          exposomeCT_bridgeExpectedInfluenceZScores$Group))
+
+```
+
+## Figure 2A: Exposome-cortical surface area bilayer network bridge strength
+```{r}
+pdf(file=paste0(workdir,"fig2a.pdf"))
+ggplot(exposomeSA_bridgeStrengthZScores, 
+       aes(x = reorder(Node, -Value), 
+           y = Value,
+           fill = Group)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_wrap(~Group, scales = "free_x") +
+  xlab("") +
+  ylab("z-score") +
+  scale_y_continuous(limits = c(-3, 4),
+                     breaks = seq(-3, 4, 1)) +
+  scale_fill_manual("",
+                    values = c("Exposome" = "dark grey", 
+                               "Surface Area" = "dark grey"))+
+  theme_bw()+
+  theme(panel.border = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(colour = "black"),
+        axis.text.x = element_text(colour = "black",
+                                   angle = 90,
+                                   hjust = 0.5,
+                                   vjust = 0.5),
+        axis.text.y = element_text(colour = "black"),
+        legend.position = "none") +
+  geom_hline(yintercept =  c(0,1),
+             linetype = "longdash",
+             color = "black")
+dev.off()
+
+```
+## Figure 2B: Exposome-cortical surface area bilayer network bridge expected influence
+```{r}
+pdf(file=paste0(workdir,"fig2b.pdf"))
+ggplot(exposomeCT_bridgeStrengthZScores, 
+       aes(x = reorder(Node, -Value), 
+           y = Value,
+           fill = Group)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_wrap(~Group, scales = "free_x") +
+  xlab("") +
+  ylab("z-score") +
+  scale_y_continuous(limits = c(-3, 4),
+                     breaks = seq(-3, 4, 1)) +
+  scale_fill_manual("",
+                    values = c("Exposome" = "dark grey", 
+                               "Surface Area" = "dark grey"))+
+  theme_bw()+
+  theme(panel.border = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(colour = "black"),
+        axis.text.x = element_text(colour = "black",
+                                   angle = 90,
+                                   hjust = 0.5,
+                                   vjust = 0.5),
+        axis.text.y = element_text(colour = "black"),
+        legend.position = "none") +
+  geom_hline(yintercept =  c(0,1),
+             linetype = "longdash",
+             color = "black")
+dev.off()
+
+```
+
+## Figure 2C: Exposome-cortical thickness bilayer network bridge strength
+```{r}
+pdf(file=paste0(workdir,"fig2c.pdf"))
+ggplot(exposomeSA_bridgeExpectedInfluenceZScores, 
+       aes(x = reorder(Node, -Value), 
+           y = Value,
+           fill = Group)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_wrap(~Group, scales = "free_x") +
+  xlab("") +
+  ylab("z-score") +
+  scale_y_continuous(limits = c(-3, 4),
+                     breaks = seq(-3, 4, 1)) +
+  scale_fill_manual("",
+                    values = c("Exposome" = "dark grey", 
+                               "Surface Area" = "dark grey"))+
+  theme_bw()+
+  theme(panel.border = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(colour = "black"),
+        axis.text.x = element_text(colour = "black",
+                                   angle = 90,
+                                   hjust = 0.5,
+                                   vjust = 0.5),
+        axis.text.y = element_text(colour = "black"),
+        legend.position = "none") +
+  geom_hline(yintercept =  c(0,1),
+             linetype = "longdash",
+             color = "black")
+dev.off()
+
+```
+
+## Figure 2D: Exposome-cortical thickness bilayer network bridge expected influence
+```{r}
+pdf(file=paste0(workdir,"fig2d.pdf"))
+ggplot(exposomeCT_bridgeExpectedInfluenceZScores, 
+       aes(x = reorder(Node, -Value), 
+           y = Value,
+           fill = Group)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_wrap(~Group, scales = "free_x") +
+  xlab("") +
+  ylab("z-score") +
+  scale_y_continuous(limits = c(-3, 4),
+                     breaks = seq(-3, 4, 1)) +
+  scale_fill_manual("",
+                    values = c("Exposome" = "dark grey", 
+                               "Surface Area" = "dark grey"))+
+  theme_bw()+
+  theme(panel.border = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(colour = "black"),
+        axis.text.x = element_text(colour = "black",
+                                   angle = 90,
+                                   hjust = 0.5,
+                                   vjust = 0.5),
+        axis.text.y = element_text(colour = "black"),
+        legend.position = "none") +
+  geom_hline(yintercept =  c(0,1),
+             linetype = "longdash",
+             color = "black")
+dev.off()
+
+```
+
+#
+
+# Network analysis supplement - partial correlation network edge weight matrices
+## Supplemental Figure 2: Exposome-structural measure  bilayer networks
+### Supplemental Figure 2A: Unthresholded exposome-cortical surface area
+```{r}
+corrplot(exposomeSA_unthresholded[["graph"]],
+         method = 'color',
+         col = COL2('PiYG'),
+         addCoef.col = 1,
+         number.cex = 0.5,
+         number.digits = 3,
+         type = "upper", 
+         diag = FALSE,
+         tl.col = "black")
+```
+### Supplemental Figure 2B: Thresholded exposome-cortical surface area
+```{r}
+corrplot(exposomeSA_thresholded[["graph"]],
+         method = 'color',
+         col = COL2('PiYG'),
+         addCoef.col = 1,
+         number.cex = 0.5,
+         number.digits = 3,
+         type = "upper", 
+         diag = FALSE,
+         tl.col = "black")
+```
+
+### Supplemental Figure 2C: Unthresholded exposome-cortical thickness
+```{r}
+corrplot(exposomeCT_unthresholded[["graph"]],
+         method = 'color',
+         col = COL2('PiYG'),
+         addCoef.col = 1,
+         number.cex = 0.5,
+         number.digits = 3,
+         type = "upper", 
+         diag = FALSE,
+         tl.col = "black")
+```
+### Supplemental Figure 2D: Thresholded exposome-cortical thickness
+```{r}
+corrplot(exposomeCT_thresholded[["graph"]],
+         method = 'color',
+         col = COL2('PiYG'),
+         addCoef.col = 1,
+         number.cex = 0.5,
+         number.digits = 3,
+         type = "upper", 
+         diag = FALSE,
+         tl.col = "black")
+```
+
+## Supplemental Figure 3: Exposome-functional measure bilayer networks
+### Supplemental Figure 3A: Unthresholded exposome-participation coefficient
+```{r}
+corrplot(exposomePC_unthresholded[["graph"]],
+         method = 'color',
+         col = COL2('PiYG'),
+         addCoef.col = 1,
+         number.cex = 0.5,
+         number.digits = 3,
+         type = "upper", 
+         diag = FALSE,
+         tl.col = "black")
+```
+### Supplemental Figure 3B: Thresholded exposome-participation coefficient
+```{r}
+corrplot(exposomePC_thresholded[["graph"]],
+         method = 'color',
+         col = COL2('PiYG'),
+         addCoef.col = 1,
+         number.cex = 0.5,
+         number.digits = 3,
+         type = "upper", 
+         diag = FALSE,
+         tl.col = "black")
+```
+
+### Supplemental Figure 3C: Unthresholded exposome-clustering coefficient
+```{r}
+corrplot(exposomeCC_unthresholded[["graph"]],
+         method = 'color',
+         col = COL2('PiYG'),
+         addCoef.col = 1,
+         number.cex = 0.5,
+         number.digits = 3,
+         type = "upper", 
+         diag = FALSE,
+         tl.col = "black")
+```
+### Supplemental Figure 2D: Thresholded exposome-clustering coefficient
+```{r}
+corrplot(exposomeCC_thresholded[["graph"]],
+         method = 'color',
+         col = COL2('PiYG'),
+         addCoef.col = 1,
+         number.cex = 0.5,
+         number.digits = 3,
+         type = "upper", 
+         diag = FALSE,
+         tl.col = "black")
+```
+
+
+#
+
+# Data supplement - correlation matrix of neuroimaging measures with age (**)
+## Structural measures
+```{r}
+structural_age_data <- structural_data[,c("age_scan",
+                                          paste0(SAvars,"_qual"),
+                                          paste0(CTvars,"_qual"))]
+colnames(structural_age_data) <- gsub("_qual","",colnames(structural_age_data))
+colnames(structural_age_data)[1] <- "Age"
+
+pdf(file=paste0(workdir,"figS2A.pdf"))
+corrplot(cor(structural_age_data),
+         method = 'color',
+         col = COL2('PiYG'),
+         addCoef.col = 1,
+         number.cex = 0.5,
+         number.digits = 3,
+         type = "upper", 
+         diag = FALSE,
+         tl.col = "black")
+dev.off()
+```
+## Functional measures 
+```{r}
+functional_age_data <- functional_data[,c("age_scan",
+                                          paste0(PCvars,"_motionresid"),
+                                          paste0(CCvars,"_motionresid"))]
+colnames(functional_age_data) <- gsub("_motionresid","",colnames(functional_age_data))
+colnames(functional_age_data)[1] <- "Age"
+
+pdf(file=paste0(workdir,"figS2B.pdf"))
+corrplot(cor(functional_age_data),
+         method = 'color',
+         col = COL2('PiYG'),
+         addCoef.col = 1,
+         number.cex = 0.5,
+         number.digits = 3,
+         type = "upper", 
+         diag = FALSE,
+         tl.col = "black")
+dev.off()
+```
+#
 
 ```
