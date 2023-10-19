@@ -27,18 +27,23 @@ library(semPlot)
 library(jmv)
 library(psych)
 ```
-
-# Setup and initial testing
+ 
+ # Setup and initial testing
 ## Data cleaning
 ```{r setup, include=FALSE}
-workdir <- "~/Desktop/exposome_project/"
-load(paste0(workdir,"n190_funcStructExposomedata.RData"))
-structural_data <- joint_quest[joint_quest[["structural"]]==1,]
-functional_data <- joint_quest[joint_quest[["functional"]]==1,]
+workdir <- # work directory
+structural_brain <- # list of subjects included in the structural sample
+functional_brain <- # list of subjects included in the functional sample
+
+exposome_crosssectional <- # all timepoint 1 subject exposome data
+exposome_crosssectional.filt <- exposome_crosssectional %>% filter(ID %in% structural_brain$ID) 
+exposome_longitudinal <- # all timepoint subject exposome data
+exposome_longitudinal.filt <- exposome_longitudinal %>% filter(ID %in% functional_brain$ID)
+
 crime_vars <- c('Murder','Rape','Assau','Robb','Burg','Lar')
 
-structural_crime <- functional_data[, crime_vars]
-functional_crime <- functional_data[, crime_vars]
+structural_crime <- exposome_crosssectional.filt[, crime_vars]
+functional_crime <- exposome_longitudinal.filt[, crime_vars]
 
 sapply(structural_crime, class) # check for numeric
 sapply(functional_crime, class) # check for numeric
@@ -48,21 +53,21 @@ sapply(functional_crime, class) # check for numeric
 ### Structural sample
 ```{r setup, include=FALSE}
 descriptives(data = structural_crime,
-             sd = T, #Lists standard deviations
-             variance = T, #Lists variances 
-             ci = T, #Lists confidence intervals (default: 95%)
-             boxLabelOutliers = T, #Lists rows with outliers
-             hist = T) #Creates histograms for variables
+             sd =TRUE, #Lists standard deviations
+             variance =TRUE, #Lists variances 
+             ci =TRUE, #Lists confidence intervals (default: 95%)
+             boxLabelOutliers =TRUE, #Lists rows with outliers
+             hist =TRUE) #Creates histograms for variables
 ```
 
 ### Functional sample
 ```{r setup, include=FALSE}
 descriptives(data = functional_crime,
-             sd = T, #Lists standard deviations
-             variance = T, #Lists variances 
-             ci = T, #Lists confidence intervals (default: 95%)
-             boxLabelOutliers = T, #Lists rows with outliers
-             hist = T) #Creates histograms for variables
+             sd =TRUE, #Lists standard deviations
+             variance =TRUE, #Lists variances 
+             ci =TRUE, #Lists confidence intervals (default: 95%)
+             boxLabelOutliers =TRUE, #Lists rows with outliers
+             hist =TRUE) #Creates histograms for variables
 ```
 
 #
@@ -110,7 +115,7 @@ ViolentCrime~~NonViolentCrime
 ```
 #
 
-# Exposome-structural measure sample (N=167)
+# Exposome-structural measure sample (N=170)
 ## Model fitting
 ### Parallel one-factor
 ```{r setup, include=FALSE}
@@ -140,7 +145,7 @@ summary(structural_congeneric_onefactor,
 ```
 ### Congeneric two-factor
 ```{r setup, include=FALSE}
-structural_congeneric_twofactor <- sem(model = congeneric_onefactor,
+structural_congeneric_twofactor <- sem(model = congeneric_twofactor,
                                        data = structural_crime,
                                        missing = 'fiml',
                                        estimator = 'MLR')
@@ -165,30 +170,7 @@ anova(structural_congeneric_onefactor,
 ```
 #
 
-# Exposome-functional measure sample (N=131)
-## Model fitting
-### Parallel one-factor
-```{r setup, include=FALSE}
-
-```
-### Congeneric one-factor
-```{r setup, include=FALSE}
-
-```
-### Congeneric two-factor
-```{r setup, include=FALSE}
-
-```
-
-## Model comparisons using likelihood ratio tests
-### Parallel one-factor & congeneric one-factor models
-```{r setup, include=FALSE}
-
-```
-### Congeneric one-factor & two-factor models
-```{r setup, include=FALSE}
-
-```
+# Exposome-functional measure sample (N=130)
 ## Model fitting
 ### Parallel one-factor
 ```{r setup, include=FALSE}
@@ -218,7 +200,7 @@ summary(functional_congeneric_onefactor,
 ```
 ### Congeneric two-factor
 ```{r setup, include=FALSE}
-functional_congeneric_twofactor <- sem(model = congeneric_onefactor,
+functional_congeneric_twofactor <- sem(model = congeneric_twofactor,
                                        data = functional_crime,
                                        missing = 'fiml',
                                        estimator = 'MLR')
@@ -242,4 +224,5 @@ anova(functional_congeneric_onefactor,
       functional_congeneric_twofactor)
 ```
 #
+
 
