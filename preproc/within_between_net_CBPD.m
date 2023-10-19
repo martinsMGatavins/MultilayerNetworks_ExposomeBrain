@@ -1,13 +1,4 @@
-%Running on the cluster
-%datadir=fullfile('/Users/utooley/cbica/projects/cbpd_main_data/CBPD_bids_crosssectional/derivatives/xcpEngine_nogsr_nospkreg/')
-%listdir='/Users/utooley/cbica/home/tooleyu/projects/in_progress/within_between_network_conn_CBPD/data/subjectLists/'
-%outdir='/Users/utooley/cbica/home/tooleyu/projects/in_progress/within_between_network_conn_CBPD/data/imageData/Schaefer400zNetworks'
-%subjlist=readtable('/Users/utooley/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/subjectLists/n64_cohort_mult_runs_usable_t1_rest_1mm_outliers_10_2mm_060419.csv', 'Delimiter',',')
-%subjlist=subjlist(:,1:2);
-
-%listdir='/Users/utooley/cbica/home/tooleyu/projects/in_progress/within_between_network_conn_CBPD/data/subjectLists/'
-%subjlist=readtable(fullfile(listdir,'n198_cross_sect_one_or_more_nonsleep_rest_10mm_max_RMS_perrun_at_least_130_vols.csv'),'Delimiter',',','ReadVariableNames', 1)
-bctdir='~/Desktop/BIDS_WUSTL_2022/BCT/2019_03_03_BCT'
+bctdir='~/Desktop/BCT/2019_03_03_BCT'
 segdir='~/Documents/GitHub/system-segregation-and-graph-tools/MATLAB'
 addpath(bctdir,segdir)
 
@@ -324,42 +315,4 @@ export(outfile,'File',strcat(outdir,'/n198_long_inc_part_coef_avg_nodewise_avgru
 outfile=dataset(char(unique_subjlist.ID), avgclustco_all)
 export(outfile,'File',strcat(outdir,'/n198_long_inc_clust_co_avg_nodewise_avgruns', parcellation,'.csv'),'Delimiter',',')
 
-end
-
-
-%% Make an average connectivity matrix for each pipeline and parcellation
-% Total average connectivity matrix!
-% Only include the averaged weighted connectivity matrix for each subject
-[unique_subs, index]=unique(subjlist.id0)
-unique_subjlist= subjlist(index,:)
-parcellations={'schaefer400'}
-%pipeline='nogsr_spkreg_fd1.25dvars2_drpvls'
-pipelines={'nogsr_spkreg_fd0.5dvars1.75_drpvls'}%, 'gsr_spkreg_fd0.5dvars1.75_drpvls','gsr_censor_5contig_fd1.25dvars2_drpvls','nogsr_spkreg_fd1.25dvars2_drpvls','gsr_censor_5contig_fd0.5dvars1.75_drpvls'}
-for p=1:length(parcellations)
-    for pl=1:length(pipelines)
-        pipeline=pipelines{pl}
-        parcellation=parcellations{p}
-        outdir=strcat('~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/',pipeline)
-        dim=str2double(parcellation(end-2:end))%what is the dimensionality of the parcellation
-        stackedMatrix = zeros(dim, dim, height(unique_subjlist));
-        datadir=strcat('~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/',pipeline,'/',parcellation,'zNetworks_avg')
-        for n=1:height(unique_subjlist)
-        sub=char(unique_subjlist.id0(n)) %look at this
-        file=fullfile(datadir,strcat(num2str(sub),'_',parcellation,'MNI_zavgnetwork.txt'))
-        %file=fullfile(datadir,strcat(num2str(sub),'_Schaefer400MNI_znetwork.txt'))
-        subfcmat = load(file);
-        for x=1:dim
-            subfcmat(x,x)=0;
-        end
-        stackedMatrix(:,:, n)=subfcmat;
-        end
-meanMatrix = mean(stackedMatrix,3); %doc mean for more info.
-%make the diagonal 0's
-    for x=1:dim
-        meanMatrix(x,x)=0;
-    end
-%export mean matrix
-csvwrite(fullfile(outdir,strcat('averaged_FC_mat_n74_', parcellation,'.csv')), meanMatrix)
-save(fullfile(outdir, strcat('averaged_FC_mat_n74',parcellation,'.mat')), 'meanMatrix')
-    end
 end
