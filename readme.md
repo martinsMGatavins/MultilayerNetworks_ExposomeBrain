@@ -8,10 +8,10 @@ Code assumes that structural images have been processed using Freesurfers _recon
 
 ## Main analyses
 
-The main analyses were done using the script [bilayer_network_analyses.rmd](bilayer_network_analyses.rmd) available in the main directory - this code reads in the preprocessed and extracted structural and functional data as well as the exposome data, residualizes brain measures, estimates networks and performs all analyses detailed in the main manuscript.  Exposome data preparation is excluded from this repo, given the sensitivity of handling location data.
+The main analyses were done using the main script ["bilayer_network_analyses.rmd"](bilayer_network_analyses.rmd) available in the main directory - this code reads in the preprocessed and extracted structural and functional data as well as the exposome data, residualizes brain measures, estimates networks and performs all analyses detailed in the main manuscript.  Exposome data preparation is excluded from this repo, given the sensitivity of handling location data.
 
 ## Supplemental analyses
 
-Sum score analyses are available in (sum_score_analysis.rmd)]
+Sum score analyses are available (here)[sum_score_analysis.rmd]
 
-Other supplemental analyses such as t-tests between excluded and included groups (Supplemental Tables 1 and 2, coefficient matrices, and age-brain measure correlations are available in same RMarkdown file as the main analyses - [bilayer_network_analyses.rmd](bilayer_network_analyses.rmd)
+Other supplemental analyses such as t-tests between excluded and included groups (Supplemental Tables 1 and 2 in the manuscript), age-brain measure correlations (Supplemental Figure 1), and partial correlation network coefficient matrices (Supplemental Figures 2 and 3) are available in same RMarkdown file as the main analyses - [here](bilayer_network_analyses.rmd)
